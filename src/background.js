@@ -94,15 +94,68 @@ if (isDevelopment) {
   }
 }
 
+/************************************/
+/*              Custom              */
+/************************************/
+var fs = require('fs')
+const ipc = require('electron').ipcMain
+
+// global variables
+global.workspacePath = ''
+global.resultFilename = ''
+global.workspaceLoaded = false
+global.setResultFilename = function (val) {
+  global.resultFilename = val
+}
+
+// Variables
+var wsControl = {
+  filenames: [],
+  fileLength: 0,
+  current: {
+    filename: '',
+    filepath: '',
+    idx: -1
+  }
+}
+
+// functions
+function loadWorkspace () {
+  var files = fs.readdirSync(global.workspacePath)
+  console.log(files)
+
+  for(var i=0; i<files.length; i++) {
+    var _file = files[i]
+    var _suffix = _file.substr(_file.length - 4, _file.length)
+    if (_suffix == '.png' || _suffix == '.PNG' || _suffix == '.jpg') {
+      wsControl.filenames.push(_file)
+      wsControl.fileLength = wsControl.filenames.length
+    }
+  }
+  
+  if (wsControl.fileLength == 0) {
+    return false
+  }
+
+  wsControl.current.filename = wsControl.filenames[0]
+  wsControl.current.filepath = global.workspacePath + "\\" + wsControl.filenames[0]
+
+  return true
+}
+
 // Linked with openWorkspace() in "@/views/Settings"
 // listen to an open-file-dialog command and sending back selected information
-const ipc = require('electron').ipcMain
 const dialog = require('electron').dialog
 
 ipc.on('open-file-dialog', function (event) {
   dialog.showOpenDialog({
     properties: ['openDirectory']
   }, function (files) {
-    if (files) event.sender.send('selected-file', files)
+    if (files) {
+      global.workspacePath = files[0]
+      global.workspaceLoaded = loadWorkspace()
+      event.sender.send('selected-file', files[0])
+      event.sender.send('workspace-load-event', global.workspaceLoaded)
+    }
   })
 })

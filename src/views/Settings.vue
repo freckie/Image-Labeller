@@ -1,6 +1,6 @@
 <template>
   <div class="content">
-    <div class="content-wrapper">
+    <div class="content-wrapper" :key="$route.fullPath">
 
       <!-- Workspace Control -->
       <v-expansion-panels
@@ -10,7 +10,8 @@
         <v-expansion-panel>
           <v-expansion-panel-header>Workspace Control</v-expansion-panel-header>
           <v-expansion-panel-content>
-            <span class="font-italic font-weight-light">{{ workspace }}</span>
+            <span v-if='workspace !== null' class="font-italic font-weight-light">{{ workspace }}</span>
+            <span v-else  class="font-italic font-weight-light">Please open your workspace</span>
             <div class="control-button-wrapper">
               <v-btn
                 class="control-button"
@@ -50,6 +51,20 @@
         </v-expansion-panel>
       </v-expansion-panels>
 
+      <v-snackbar
+        v-model="snackbar.isOpened"
+        :timeout="4000"
+      >
+        {{ snackbar.text }}
+        <v-btn
+          color="blue"
+          text
+          @click="snackbar = false"
+        >
+          Close
+        </v-btn>
+      </v-snackbar>
+
     </div>
   </div>
 </template>
@@ -59,10 +74,31 @@ export default {
   name: 'settings',
   data: () => ({
     panels: [0, 0],
-    workspace: 'Please open your workspace',
-    output: 'result.csv'
+    workspace: null,
+    output: 'result.csv',
+    snackbar: {
+      isOpened: false,
+      text: ''
+    }
   }),
+  mounted () {
+    this.getSetting()
+  },
   methods: {
+    getSetting () {
+      const remote = require('electron').remote
+
+      var _workspace = remote.getGlobal('workspacePath')
+      if (_workspace !== '') this.workspace = _workspace
+      else this.workspace = null
+
+      var _result = remote.getGlobal('resultFilename')
+      if (_result !== '') this.output = _result
+      else {
+        this.output = 'result.csv'
+        remote.getGlobal('setResultFilename')(this.output)
+      }
+    },
     openWorkspace () {
       var vm = this
 
@@ -72,9 +108,19 @@ export default {
       ipc.on('selected-file', function (event, path) {
         vm.workspace = `${path}`
       })
+      ipc.on('workspace-load-event', function (event, ok) {
+        if (ok === true) {
+          vm.snackbar.text = 'Workspace loaded successfully!'
+          vm.snackbar.isOpened = true
+        } else {
+          vm.snackbar.text = 'Workspace loaded failed!'
+          vm.snackbar.isOpened = false
+        }
+      })
     },
     saveOutputFilename () {
-      console.log('output fielname')
+      const remote = require('electron').remote
+      remote.getGlobal('setResultFilename')(this.output)
     }
   }
 }

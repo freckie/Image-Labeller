@@ -1,62 +1,67 @@
 <template>
   <div class="content">
+    <div class="content-wrapper" :key="$route.fullPath">
 
-    <!-- Image Panel -->
-    <div class="image-panel">
-      <div class="image-wrapper">
-        <span class="body-2">{{ image.filename }}</span>
-        <v-img id="target-image" :src="image.filepath"></v-img>
+      <div v-if="!workspaceLoaded">Workspace not loaded!</div>
+      <div v-else>
+        <!-- Image Panel -->
+        <div class="image-panel">
+          <div class="image-wrapper">
+            <span class="body-2">{{ image.filename }}</span>
+            <v-img id="target-image" :src="image.filepath"></v-img>
+          </div>
+        </div>
+
+        <v-divider></v-divider>
+
+        <!-- Input Panel -->
+        <div class="input-panel">
+          <v-container>
+            <v-row justify="space-around">
+              <v-col
+                v-for="digit in digits"
+                :key="digit.id"
+                :id="`input-digit-`+digit.id"
+                cols="12"
+                md="3"
+              >
+                <v-sheet
+                  class="pa-12"
+                  color="grey lighten-3"
+                >
+                  <v-sheet
+                    :elevation="6"
+                    class="mx-auto digit-wrapper"
+                    height="80"
+                    width="60"
+                  >
+                    <span class="display-3">{{ digit.value }}</span>
+                  </v-sheet>
+                </v-sheet>
+              </v-col>
+            </v-row>
+          </v-container>
+        </div>
+
+        <!-- Control Panel -->
+        <v-bottom-navigation class="control-panel">
+          <v-btn value="prev">
+            <span>Prev</span>
+            <v-icon>mdi-skip-previous-outline</v-icon>
+          </v-btn>
+
+          <v-btn class="non-clickable">
+            <span>{{ image.now }} / {{ maxPage }}</span>
+          </v-btn>
+
+          <v-btn value="next">
+            <span>Next</span>
+            <v-icon>mdi-skip-next-outline</v-icon>
+          </v-btn>
+        </v-bottom-navigation>
+
       </div>
     </div>
-
-    <v-divider></v-divider>
-
-    <!-- Input Panel -->
-    <div class="input-panel">
-      <v-container>
-        <v-row justify="space-around">
-          <v-col
-            v-for="digit in digits"
-            :key="digit.id"
-            :id="`input-digit-`+digit.id"
-            cols="12"
-            md="3"
-          >
-            <v-sheet
-              class="pa-12"
-              color="grey lighten-3"
-            >
-              <v-sheet
-                :elevation="6"
-                class="mx-auto digit-wrapper"
-                height="80"
-                width="60"
-              >
-                <span class="display-3">{{ digit.value }}</span>
-              </v-sheet>
-            </v-sheet>
-          </v-col>
-        </v-row>
-      </v-container>
-    </div>
-
-    <!-- Control Panel -->
-    <v-bottom-navigation class="control-panel">
-      <v-btn value="prev">
-        <span>Prev</span>
-        <v-icon>mdi-skip-previous-outline</v-icon>
-      </v-btn>
-
-      <v-btn class="non-clickable">
-        <span>{{ image.now }} / {{ maxPage }}</span>
-      </v-btn>
-
-      <v-btn value="next">
-        <span>Next</span>
-        <v-icon>mdi-skip-next-outline</v-icon>
-      </v-btn>
-    </v-bottom-navigation>
-
   </div>
 </template>
 
@@ -64,6 +69,7 @@
 export default {
   name: 'Main',
   data: () => ({
+    workspaceLoaded: false,
     digits: [
       {
         id: 0,
@@ -88,7 +94,19 @@ export default {
       now: 1
     },
     maxPage: 100
-  })
+  }),
+  mounted () {
+    this.checkWorkspaceLoaded()
+
+    // const remote = require('electron').remote
+    // remote.getGlobal('_loadWorkspace')()
+  },
+  methods: {
+    checkWorkspaceLoaded () {
+      const remote = require('electron').remote
+      this.workspaceLoaded = remote.getGlobal('workspaceLoaded')
+    }
+  }
 }
 </script>
 
