@@ -17,12 +17,14 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { secure: tru
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({
-    width: 800,
+    width: 1000,
     height: 600,
+    titleBarStyle: 'customButtonsOnHover',
     webPreferences: {
       nodeIntegration: true
     }
   })
+  win.removeMenu() // Remove top toolbar
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
@@ -91,3 +93,16 @@ if (isDevelopment) {
     })
   }
 }
+
+// Linked with openWorkspace() in "@/views/Settings"
+// listen to an open-file-dialog command and sending back selected information
+const ipc = require('electron').ipcMain
+const dialog = require('electron').dialog
+
+ipc.on('open-file-dialog', function (event) {
+  dialog.showOpenDialog({
+    properties: ['openDirectory']
+  }, function (files) {
+    if (files) event.sender.send('selected-file', files)
+  })
+})
