@@ -6,7 +6,7 @@
       <div v-else>
         <!-- Image Panel -->
         <div class="image-panel">
-          <div class="image-wrapper">
+          <div class="image-wrapper" :key="image.filename">
             <span class="body-2">{{ image.filename }}</span>
             <v-img id="target-image" :src="image.filepath"></v-img>
           </div>
@@ -54,7 +54,7 @@
             <span>{{ image.now }} / {{ maxPage }}</span>
           </v-btn>
 
-          <v-btn value="next">
+          <v-btn value="next" @clicked="nextImage">
             <span>Next</span>
             <v-icon>mdi-skip-next-outline</v-icon>
           </v-btn>
@@ -97,14 +97,26 @@ export default {
   }),
   mounted () {
     this.checkWorkspaceLoaded()
-
-    // const remote = require('electron').remote
-    // remote.getGlobal('_loadWorkspace')()
   },
   methods: {
     checkWorkspaceLoaded () {
       const remote = require('electron').remote
       this.workspaceLoaded = remote.getGlobal('workspaceLoaded')
+    },
+    nextImage () {
+      this.setCurrentImage(this.image.now + 1)
+    },
+    setCurrentImage (idx) {
+      var vm = this
+
+      const ipc = require('electron').ipcRenderer
+      ipc.send('set-current-idx', idx)
+      ipc.on('current-image-changed', function (event, curr) {
+        console.log(curr)
+        vm.image.now = curr.idx
+        vm.image.filepath = curr.filepath
+        vm.image.filename = curr.filename
+      })
     }
   }
 }

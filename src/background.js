@@ -143,6 +143,16 @@ function loadWorkspace () {
   return true
 }
 
+function setCurrentIdx (idx) {
+  if (idx >= wsControl.fileLength) {
+    return false
+  }
+  wsControl.current.idx = idx
+  wsControl.current.filename = wsControl.filenames[idx]
+  wsControl.current.filepath = global.workspacePath + "\\" + wsControl.filenames[idx]
+  return true
+}
+
 // Linked with openWorkspace() in "@/views/Settings"
 // listen to an open-file-dialog command and sending back selected information
 const dialog = require('electron').dialog
@@ -158,4 +168,12 @@ ipc.on('open-file-dialog', function (event) {
       event.sender.send('workspace-load-event', global.workspaceLoaded)
     }
   })
+})
+
+// ss
+ipc.on('set-current-idx', function (event, idx) {
+  var ok = setCurrentIdx(idx)
+  if (ok) {
+    event.sender.send('current-image-changed', wsControl.current)
+  }
 })
