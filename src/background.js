@@ -17,7 +17,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { secure: tru
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({
-    width: 960,
+    width: 970,
     height: 600,
     titleBarStyle: 'customButtonsOnHover',
     webPreferences: {
@@ -104,9 +104,13 @@ const ipc = require('electron').ipcMain
 // global variables
 global.workspacePath = ''
 global.resultFilename = ''
+global.startFilename = ''
 global.workspaceLoaded = false
 global.setResultFilename = function (val) {
   global.resultFilename = val
+}
+global.setStartFilename = function (val) {
+  global.startFilename = val
 }
 
 // Variables
@@ -128,8 +132,14 @@ function loadWorkspace () {
   files.sort((a, b) => { return Number(a.substr(0, a.length - 3)) - Number(b.substr(0, b.length - 3)) })
   console.log(files)
 
+  var nowStart = (global.startFilename === '')
   for (var i = 0; i < files.length; i++) {
     var _file = files[i]
+    if (!nowStart) {
+      if (_file === global.startFilename) nowStart = true
+      else continue
+    }
+
     var _suffix = _file.substr(_file.length - 4, _file.length)
     if (_suffix === '.png' || _suffix === '.PNG') {
       wsControl.filenames.push(_file)
