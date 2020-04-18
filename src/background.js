@@ -17,11 +17,12 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { secure: tru
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({
-    width: 1000,
+    width: 960,
     height: 600,
     titleBarStyle: 'customButtonsOnHover',
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      webSecurity: false
     }
   })
   win.removeMenu() // Remove top toolbar
@@ -115,42 +116,75 @@ var wsControl = {
   current: {
     filename: '',
     filepath: '',
-    idx: -1
+    idx: -1,
+    digits: []
   }
 }
+var resultDigits = []
 
 // functions
 function loadWorkspace () {
   var files = fs.readdirSync(global.workspacePath)
+  files.sort((a, b) => { return Number(a.substr(0, a.length - 3)) - Number(b.substr(0, b.length - 3)) })
   console.log(files)
 
-  for(var i=0; i<files.length; i++) {
+  for (var i = 0; i < files.length; i++) {
     var _file = files[i]
     var _suffix = _file.substr(_file.length - 4, _file.length)
-    if (_suffix == '.png' || _suffix == '.PNG' || _suffix == '.jpg') {
+    if (_suffix === '.png' || _suffix === '.PNG') {
       wsControl.filenames.push(_file)
       wsControl.fileLength = wsControl.filenames.length
     }
   }
-  
-  if (wsControl.fileLength == 0) {
+
+  if (wsControl.fileLength === 0) {
     return false
   }
-
-  wsControl.current.filename = wsControl.filenames[0]
-  wsControl.current.filepath = global.workspacePath + "\\" + wsControl.filenames[0]
-
   return true
 }
 
 function setCurrentIdx (idx) {
-  if (idx >= wsControl.fileLength) {
+  if (idx >= wsControl.fileLength || idx < 0) {
     return false
   }
   wsControl.current.idx = idx
   wsControl.current.filename = wsControl.filenames[idx]
-  wsControl.current.filepath = global.workspacePath + "\\" + wsControl.filenames[idx]
+  wsControl.current.filepath = global.workspacePath + '\\' + wsControl.filenames[idx]
   return true
+}
+
+function setCurrDigits (digits) {
+  wsControl.current.digits = digits
+  if (wsControl.current.idx < resultDigits.length) {
+    resultDigits[wsControl.current.idx] = digits
+  } else if (wsControl.current.idx >= resultDigits.length) {
+    resultDigits.push(digits)
+  }
+}
+
+function loadCurrDigits (idx) {
+  if (idx < 0 || idx >= resultDigits.length) wsControl.current.digits = [{ id: 0, value: '' }, { id: 1, value: '' }, { id: 2, value: '' }, { id: 3, value: '' }]
+  else wsControl.current.digits = resultDigits[idx]
+}
+
+function _digitsToLabels (digits) {
+  var result = []
+  var len = 0
+  if (digits[0].value === '') return [0, 0, 10, 10, 10, 10]
+  else {
+    result.push(1) // hasNum
+    result.push(0) // digitLen
+    for (var i = 0; i < 4; i++) {
+      if (digits[i].value !== '') {
+        result.push(digits[i].value)
+        len++
+      } else {
+        result.push(10)
+      }
+    }
+    result[1] = len
+  }
+  return result
 }
 
 // Linked with openWorkspace() in "@/views/Settings"
@@ -170,10 +204,61 @@ ipc.on('open-file-dialog', function (event) {
   })
 })
 
-// ss
-ipc.on('set-current-idx', function (event, idx) {
-  var ok = setCurrentIdx(idx)
+// Image control
+ipc.on('set-current', function (event, data) {
+  var ok = false
+
+  if (data.key === 'prev') {
+    setCurrDigits(data.digits)
+    ok = setCurrentIdx(wsControl.current.idx - 1)
+    loadCurrDigits(wsControl.current.idx)
+  } else if (data.key === 'next') {
+    setCurrDigits(data.digits)
+    ok = setCurrentIdx(wsControl.current.idx + 1)
+    loadCurrDigits(wsControl.current.idx)
+  }
+
   if (ok) {
     event.sender.send('current-image-changed', wsControl.current)
   }
+})
+
+// Export as CSV
+const createCsvWriter = require('csv-writer').createObjectCsvWriter
+ipc.on('save-to-csv', function (event) {
+  const csvWriter = createCsvWriter({
+    path: global.workspacePath + '\\' + global.resultFilename,
+    header: [
+      { id: 'filename', title: 'FILENAME' },
+      { id: 'label1', title: 'hasNum' },
+      { id: 'label2', title: 'digitLen' },
+      { id: 'label3', title: 'DIGIT1' },
+      { id: 'label4', title: 'DIGIT2' },
+      { id: 'label5', title: 'DIGIT3' },
+      { id: 'label6', title: 'DIGIT4' }
+    ]
+  })
+
+  var records = []
+  for (var i = 0; i < resultDigits.length; i++) {
+    var record = { filename: '', label1: 0, label2: 0, label3: 0, label4: 0, label5: 0, label6: 0 }
+    var labels = _digitsToLabels(resultDigits[i])
+    console.log(labels)
+    record.filename = wsControl.filenames[i]
+    record.label1 = labels[0]
+    record.label2 = labels[1]
+    record.label3 = labels[2]
+    record.label4 = labels[3]
+    record.label5 = labels[4]
+    record.label6 = labels[5]
+    records.push(record)
+  }
+
+  csvWriter.writeRecords(records)
+    .then(() => {
+      event.returnValue = 'Saved successfully.'
+    })
+    .catch(function (err) {
+      event.returnValue = String(err)
+    })
 })

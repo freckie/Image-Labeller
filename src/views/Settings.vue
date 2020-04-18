@@ -59,7 +59,7 @@
         <v-btn
           color="blue"
           text
-          @click="snackbar = false"
+          @click="snackbar.isOpened = false"
         >
           Close
         </v-btn>
@@ -114,7 +114,7 @@ export default {
           vm.snackbar.isOpened = true
         } else {
           vm.snackbar.text = 'Workspace loaded failed!'
-          vm.snackbar.isOpened = false
+          vm.snackbar.isOpened = true
         }
       })
     },

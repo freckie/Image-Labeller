@@ -2,8 +2,9 @@
   <div class="content">
     <div class="content-wrapper" :key="$route.fullPath">
 
-      <div v-if="!workspaceLoaded">Workspace not loaded!</div>
-      <div v-else>
+      <div v-if="!workspaceLoaded" style="color: red">Workspace not loaded!</div>
+
+      <div v-else :key="image.now">
         <!-- Image Panel -->
         <div class="image-panel">
           <div class="image-wrapper" :key="image.filename">
@@ -45,20 +46,34 @@
 
         <!-- Control Panel -->
         <v-bottom-navigation class="control-panel">
-          <v-btn value="prev">
+          <v-btn value="prev" @click="prevImage">
             <span>Prev</span>
             <v-icon>mdi-skip-previous-outline</v-icon>
           </v-btn>
 
           <v-btn class="non-clickable">
-            <span>{{ image.now }} / {{ maxPage }}</span>
+            <span>{{ image.filename }}</span>
           </v-btn>
 
-          <v-btn value="next" @clicked="nextImage">
+          <v-btn value="next" @click="nextImage">
             <span>Next</span>
             <v-icon>mdi-skip-next-outline</v-icon>
           </v-btn>
         </v-bottom-navigation>
+
+        <v-snackbar
+          v-model="snackbar.isOpened"
+          :timeout="3000"
+        >
+          {{ snackbar.text }}
+          <v-btn
+            color="blue"
+            text
+            @click="snackbar.isOpened = false"
+          >
+            Close
+          </v-btn>
+        </v-snackbar>
 
       </div>
     </div>
@@ -70,52 +85,111 @@ export default {
   name: 'Main',
   data: () => ({
     workspaceLoaded: false,
+    currDigitID: 0,
     digits: [
-      {
-        id: 0,
-        value: '1'
-      },
-      {
-        id: 1,
-        value: '3'
-      },
-      {
-        id: 2,
-        value: '6'
-      },
-      {
-        id: 3,
-        value: ''
-      }
+      { id: 0, value: '' },
+      { id: 1, value: '' },
+      { id: 2, value: '' },
+      { id: 3, value: '' }
     ],
     image: {
-      filepath: require('@/assets/test_imgs/1.jpg'),
-      filename: '1.jpg',
-      now: 1
+      filepath: '',
+      filename: '',
+      now: null
     },
-    maxPage: 100
+    snackbar: {
+      isOpened: false,
+      text: ''
+    }
   }),
   mounted () {
+    // Check if workspace loaded
     this.checkWorkspaceLoaded()
+
+    // Detect current image data
+    var vm = this
+    const ipc = require('electron').ipcRenderer
+    ipc.on('current-image-changed', function (event, curr) {
+      console.log(curr)
+      vm.image.now = curr.idx
+      vm.image.filepath = curr.filepath
+      vm.image.filename = curr.filename
+      // vm.currDigitID = 0
+      // vm.digits = curr.digits
+      vm.loadDigits(curr.digits)
+    })
+
+    // Capture keydown events
+    this._keyCapture()
   },
   methods: {
     checkWorkspaceLoaded () {
       const remote = require('electron').remote
       this.workspaceLoaded = remote.getGlobal('workspaceLoaded')
     },
-    nextImage () {
-      this.setCurrentImage(this.image.now + 1)
-    },
-    setCurrentImage (idx) {
-      var vm = this
-
+    saveToCSV () {
       const ipc = require('electron').ipcRenderer
-      ipc.send('set-current-idx', idx)
-      ipc.on('current-image-changed', function (event, curr) {
-        console.log(curr)
-        vm.image.now = curr.idx
-        vm.image.filepath = curr.filepath
-        vm.image.filename = curr.filename
+      // ipc.send('save-to-csv')
+      var result = ipc.sendSync('save-to-csv')
+      console.log(result)
+
+      this.snackbar.text = result
+      this.snackbar.isOpened = true
+    },
+    prevImage () {
+      this._setCurrentImage('prev')
+    },
+    nextImage () {
+      this._setCurrentImage('next')
+    },
+    inputDigit (keyCode) {
+      if (this.currDigitID > 3) return false
+      else {
+        this.digits[this.currDigitID].value = keyCode - 48
+        this.currDigitID++
+        return true
+      }
+    },
+    removeDigit () {
+      if (this.currDigitID <= 0) return false
+      else {
+        this.digits[this.currDigitID - 1].value = ''
+        this.currDigitID--
+        return true
+      }
+    },
+    loadDigits (newDigits) {
+      var len = 0
+      for (var i = 0; i < 4; i++) {
+        if (newDigits[i].value !== '') len++
+        else break
+      }
+      this.currDigitID = len
+      this.digits = newDigits
+      console.log(len)
+    },
+    _setCurrentImage (key) {
+      const ipc = require('electron').ipcRenderer
+      ipc.send('set-current', { key: key, digits: this.digits })
+    },
+    _clearDigits () {
+      for (var i = 0; i < 4; i++) this.digits[i].value = ''
+      this.currDigitID = 0
+    },
+    _keyCapture () {
+      var vm = this
+      window.addEventListener('keyup', function (e) {
+        if (e.keyCode === 37) { // Left arrow
+          vm.prevImage()
+        } else if (e.keyCode === 39) { // Right arrow
+          vm.nextImage()
+        } else if (e.keyCode === 83) { // 's' Save
+          vm.saveToCSV()
+        } else if (e.keyCode >= 48 && e.keyCode <= 57) { // Numbers
+          vm.inputDigit(e.keyCode)
+        } else if (e.keyCode === 8 || e.keyCode === 46) { // Remove
+          vm.removeDigit()
+        }
       })
     }
   }
@@ -131,7 +205,9 @@ export default {
     margin: 10px auto;
 
     #target-image {
-      max-width: 240px;
+      width: 240px;
+      height: 240px;
+      background-color: #000000;
     }
   }
 }
