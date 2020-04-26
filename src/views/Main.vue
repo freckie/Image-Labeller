@@ -179,15 +179,15 @@ export default {
     _keyCapture () {
       var vm = this
       window.addEventListener('keyup', function (e) {
-        if (e.keyCode === 37) { // Left arrow
+        if (e.keyCode === 37 || e.keyCode === 72) { // Left arrow or 'h'
           vm.prevImage()
-        } else if (e.keyCode === 39) { // Right arrow
+        } else if (e.keyCode === 39 || e.keyCode === 76 || e.keyCode === 13) { // Right arrow or 'l' or enter
           vm.nextImage()
         } else if (e.keyCode === 83) { // 's' Save
           vm.saveToCSV()
         } else if (e.keyCode >= 48 && e.keyCode <= 57) { // Numbers
           vm.inputDigit(e.keyCode)
-        } else if (e.keyCode === 8 || e.keyCode === 46) { // Remove
+        } else if (e.keyCode === 8 || e.keyCode === 46) { // Backspace or Delete
           vm.removeDigit()
         }
       })
